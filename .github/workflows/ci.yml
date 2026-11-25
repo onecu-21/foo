@@ -29,8 +29,8 @@ env:
 #
 # Emulated with QEMU (release build and unit tests only, see below):
 #   Linux    powerpc64 (big-endian), powerpc64le, riscv64        (cross)
-#   Linux    s390x, ARM32 (armv7 hard-float), PowerPC32,
-#            LoongArch64, SPARC64                                (apt cross gcc)
+#   Linux    s390x, ARM32 (armv7 hard-float), PowerPC32, SPARC64        (apt cross gcc)
+#   Linux    LoongArch64 (static musl, linked with clang + lld)
 #   Linux    MIPS32 BE/LE, MIPS64 BE/LE, m68k                    (apt cross gcc,
 #            Rust tier 3: nightly + build-std, so "experimental": a failure here
 #            does not fail CI, and a binary is only published if it fully passed)
@@ -144,17 +144,20 @@ jobs:
           - { target: s390x-unknown-linux-gnu, gcc: s390x-linux-gnu, qemu: s390x, experimental: false }
           - { target: armv7-unknown-linux-gnueabihf, gcc: arm-linux-gnueabihf, qemu: arm, experimental: false }
           - { target: powerpc-unknown-linux-gnu, gcc: powerpc-linux-gnu, qemu: ppc, experimental: false }
-          - { target: loongarch64-unknown-linux-gnu, gcc: loongarch64-linux-gnu, qemu: loongarch64, experimental: false }
+          - { target: loongarch64-unknown-linux-musl, qemu: loongarch64, linker: clang, apt: "clang lld", rustflags: "-C link-arg=--target=loongarch64-unknown-linux-musl -C link-arg=-fuse-ld=lld", experimental: false }
           - { target: sparc64-unknown-linux-gnu, gcc: sparc64-linux-gnu, qemu: sparc64, experimental: false }
           - { target: mips-unknown-linux-gnu, gcc: mips-linux-gnu, qemu: mips, experimental: true }
           - { target: mipsel-unknown-linux-gnu, gcc: mipsel-linux-gnu, qemu: mipsel, experimental: true }
           - { target: mips64-unknown-linux-gnuabi64, gcc: mips64-linux-gnuabi64, qemu: mips64, experimental: true }
           - { target: mips64el-unknown-linux-gnuabi64, gcc: mips64el-linux-gnuabi64, qemu: mips64el, experimental: true }
-          - { target: m68k-unknown-linux-gnu, gcc: m68k-linux-gnu, qemu: m68k, experimental: true }
+          - { target: m68k-unknown-linux-gnu, gcc: m68k-linux-gnu, qemu: m68k, rustflags: "-C relocation-model=static -C link-arg=-no-pie -C target-cpu=M68040", experimental: true }
     steps:
       - uses: actions/checkout@v4
-      - name: Install cross gcc, glibc sysroot, and QEMU
-        run: sudo apt-get update && sudo apt-get install -y gcc-${{ matrix.gcc }} qemu-user
+      - name: Install cross toolchain and QEMU
+        run: |
+          pkgs="qemu-user ${{ matrix.apt }}"
+          if [ -n "${{ matrix.gcc }}" ]; then pkgs="$pkgs gcc-${{ matrix.gcc }}"; fi
+          sudo apt-get update && sudo apt-get install -y $pkgs
       - uses: dtolnay/rust-toolchain@stable
         if: ${{ !matrix.experimental }}
         with:
@@ -170,8 +173,18 @@ jobs:
       - name: Point cargo at the cross linker and QEMU
         run: |
           upper=$(echo "${{ matrix.target }}" | tr 'a-z-' 'A-Z_')
-          echo "CARGO_TARGET_${upper}_LINKER=${{ matrix.gcc }}-gcc" >> "$GITHUB_ENV"
-          echo "CARGO_TARGET_${upper}_RUNNER=qemu-${{ matrix.qemu }} -L /usr/${{ matrix.gcc }}" >> "$GITHUB_ENV"
+          if [ -n "${{ matrix.gcc }}" ]; then
+            # glibc target: Ubuntu's cross gcc, and its sysroot for qemu-user
+            echo "CARGO_TARGET_${upper}_LINKER=${{ matrix.gcc }}-gcc" >> "$GITHUB_ENV"
+            echo "CARGO_TARGET_${upper}_RUNNER=qemu-${{ matrix.qemu }} -L /usr/${{ matrix.gcc }}" >> "$GITHUB_ENV"
+          else
+            # static musl target: Rust bundles libc, so no sysroot is needed
+            echo "CARGO_TARGET_${upper}_LINKER=${{ matrix.linker }}" >> "$GITHUB_ENV"
+            echo "CARGO_TARGET_${upper}_RUNNER=qemu-${{ matrix.qemu }}" >> "$GITHUB_ENV"
+          fi
+          if [ -n "${{ matrix.rustflags }}" ]; then
+            echo "CARGO_TARGET_${upper}_RUSTFLAGS=${{ matrix.rustflags }}" >> "$GITHUB_ENV"
+          fi
           if [ "${{ matrix.experimental }}" = true ]; then
             echo "CARGO_UNSTABLE_BUILD_STD=std" >> "$GITHUB_ENV"
           fi
