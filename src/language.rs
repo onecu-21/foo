@@ -26,6 +26,8 @@ pub enum Language {
     Kotlin,
     #[value(name = "csharp", alias = "c#", alias = "cs", alias = "dotnet")]
     CSharp,
+    #[value(alias = "cob")]
+    Cobol,
 }
 
 impl Language {
@@ -41,6 +43,7 @@ impl Language {
             Self::JavaScript => "javascript",
             Self::Kotlin => "kotlin",
             Self::CSharp => "csharp",
+            Self::Cobol => "cobol",
         }
     }
 
@@ -55,6 +58,7 @@ impl Language {
             Self::JavaScript => "main.js",
             Self::Kotlin => "Main.kt",
             Self::CSharp => "main.cs",
+            Self::Cobol => "main.cob",
         }
     }
 
@@ -70,6 +74,7 @@ impl Language {
             Self::JavaScript => "node",
             Self::Kotlin => "kotlinc",
             Self::CSharp => "dotnet",
+            Self::Cobol => "cobc",
         }
     }
 
@@ -94,6 +99,12 @@ impl Language {
             Self::CSharp => {
                 "using System;\n\nclass Program\n{\n    static void Main()\n    {\n    }\n}\n"
             }
+            Self::Cobol => concat!(
+                "IDENTIFICATION DIVISION.\n",
+                "PROGRAM-ID. MAIN.\n\n",
+                "PROCEDURE DIVISION.\n",
+                "    STOP RUN.\n",
+            ),
         }
     }
 
@@ -105,6 +116,7 @@ impl Language {
             Self::Java => Some("vscjava.vscode-java-pack"),
             Self::Go => Some("golang.go"),
             Self::CSharp => Some("ms-dotnettools.csharp"),
+            Self::Cobol => Some("bitlang.cobol"),
             Self::JavaScript | Self::Kotlin => None,
         }
     }
@@ -173,6 +185,7 @@ impl Language {
             Self::Rust => command.args(["--edition=2021", "-O", source, "-o"]),
             Self::Go => command.args(["build", "-o"]),
             Self::Kotlin => command.args([source, "-include-runtime", "-d"]),
+            Self::Cobol => command.args(["-x", "-free", "-O2", source, "-o"]),
         };
 
         let build = tempfile::tempdir().map_err(Error::TemporaryDirectory)?;
@@ -217,6 +230,7 @@ impl Language {
             Self::JavaScript => "Install Node.js.",
             Self::Kotlin => "Install the Kotlin/JVM command-line compiler and a JDK.",
             Self::CSharp => "Install the .NET SDK 10 or later.",
+            Self::Cobol => "Install GnuCOBOL (cobc).",
         }
     }
 }
@@ -234,6 +248,7 @@ impl fmt::Display for Language {
             Self::JavaScript => "JavaScript",
             Self::Kotlin => "Kotlin",
             Self::CSharp => "C#",
+            Self::Cobol => "COBOL",
         })
     }
 }
@@ -434,6 +449,13 @@ mod tests {
         }
         assert_eq!(Language::CSharp.source_name(), "main.cs");
         assert_eq!(Language::CSharp.default_compiler(), "dotnet");
+    }
+
+    #[test]
+    fn cobol_uses_gnucobol_with_cob_sources() {
+        assert_eq!(Language::from_str("cob", true), Ok(Language::Cobol));
+        assert_eq!(Language::Cobol.source_name(), "main.cob");
+        assert_eq!(Language::Cobol.default_compiler(), "cobc");
     }
 
     #[test]

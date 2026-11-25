@@ -34,7 +34,11 @@ impl TestEnv {
     }
 
     fn init(&self) {
-        let input = format!("rust\n\n\n{}\n", self.workspace.display());
+        self.init_with("rust");
+    }
+
+    fn init_with(&self, language: &str) {
+        let input = format!("{language}\n\n\n{}\n", self.workspace.display());
         let output = run_with_input(self.command().arg("init"), input.as_bytes());
         assert_success(&output);
     }
@@ -358,4 +362,56 @@ fn messages_can_be_switched_to_korean() {
 
     let output = env.run(&["start", "9"]);
     assert!(String::from_utf8_lossy(&output.stderr).starts_with("error: "));
+}
+
+fn on_path(tool: &str) -> bool {
+    std::env::var_os("PATH").is_some_and(|path| {
+        std::env::split_paths(&path)
+            .any(|dir| dir.join(tool).is_file() || dir.join(format!("{tool}.exe")).is_file())
+    })
+}
+
+#[test]
+fn vscode_runner_builds_and_executes_cobol_with_standard_input() {
+    if !on_path("cobc") {
+        assert!(
+            std::env::var_os("FOO_REQUIRE_COBOL").is_none(),
+            "FOO_REQUIRE_COBOL is set but cobc is not on PATH"
+        );
+        eprintln!("skipped: GnuCOBOL (cobc) is not installed");
+        return;
+    }
+    let env = TestEnv::new();
+    env.init_with("cobol");
+    assert_success(&env.run(&["open", "1000"]));
+    let problem_dir = env.workspace.join("1000");
+    assert!(problem_dir.join("main.cob").is_file());
+    fs::write(
+        problem_dir.join("main.cob"),
+        "IDENTIFICATION DIVISION.
+PROGRAM-ID. MAIN.
+
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+01 TEXT-IN PIC X(80).
+01 TOTAL PIC S9(18) VALUE 0.
+01 SHOWN PIC -(17)9.
+
+PROCEDURE DIVISION.
+    ACCEPT TEXT-IN
+    COMPUTE TOTAL = TOTAL + FUNCTION NUMVAL(TEXT-IN)
+    ACCEPT TEXT-IN
+    COMPUTE TOTAL = TOTAL + FUNCTION NUMVAL(TEXT-IN)
+    MOVE TOTAL TO SHOWN
+    DISPLAY FUNCTION TRIM(SHOWN)
+    STOP RUN.
+",
+    )
+    .expect("write COBOL solution");
+
+    let mut command = env.command();
+    command.current_dir(&problem_dir).arg("__run");
+    let output = run_with_input(&mut command, b"20\n22\n");
+    assert_success(&output);
+    assert_eq!(String::from_utf8_lossy(&output.stdout).trim(), "42");
 }
