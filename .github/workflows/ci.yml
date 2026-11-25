@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
   workflow_dispatch:
   workflow_call:
@@ -27,11 +27,19 @@ env:
 #   macOS    x64 only. Apple silicon (aarch64-apple-darwin) is deliberately not built
 #            or tested here, so it is unverified.
 #
-# Emulated with cross + QEMU (release build and unit tests only, see below):
-#   Linux    powerpc64 (big-endian), powerpc64le, riscv64
+# Emulated with QEMU (release build and unit tests only, see below):
+#   Linux    powerpc64 (big-endian), powerpc64le, riscv64        (cross)
+#   Linux    s390x, ARM32 (armv7 hard-float), PowerPC32, SPARC64 (apt cross gcc)
+#   Linux    MIPS32 BE/LE, MIPS64 BE/LE                          (apt cross gcc;
+#            Rust tier 3: nightly + build-std, so "experimental": a failure here
+#            does not fail CI, and a binary is only published if it fully passed)
 #
-# Not built, because Rust or the OS has no usable target:
-#   riscv32 (no hosted Rust target on any of these OSes; glibc has no rv32 port),
+# Not built:
+#   riscv32 (no glibc port and no tier 1/2 Rust target),
+#   SPARC32 (no packaged glibc cross toolchain),
+#   LoongArch64, m68k, Hexagon (dropped on purpose: Ubuntu has no LoongArch cross gcc,
+#   Rust's std does not compile for m68k yet, and Hexagon needs a 1.2 GB third-party
+#   toolchain download),
 #   x86 / powerpc / riscv on macOS, powerpc / riscv on Windows.
 
 jobs:
@@ -51,7 +59,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: ubuntu-latest, target: x86_64-unknown-linux-gnu }
+          - { os: ubuntu-latest, target: x86_64-unknown-linux-gnu, cobol: true }
           - { os: ubuntu-latest, target: i686-unknown-linux-gnu, multilib: true }
           - { os: ubuntu-24.04-arm, target: aarch64-unknown-linux-gnu }
           - { os: windows-latest, target: x86_64-pc-windows-msvc }
@@ -63,6 +71,14 @@ jobs:
       - name: Install 32-bit C toolchain
         if: matrix.multilib
         run: sudo apt-get update && sudo apt-get install -y gcc-multilib
+      # GnuCOBOL lets the COBOL integration test really run here; FOO_REQUIRE_COBOL
+      # turns "cobc not found, skip" into a failure.
+      - name: Install GnuCOBOL
+        if: matrix.cobol
+        run: |
+          sudo apt-get update && sudo apt-get install -y gnucobol
+          cobc --version | head -1
+          echo "FOO_REQUIRE_COBOL=1" >> "$GITHUB_ENV"
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
@@ -111,6 +127,61 @@ jobs:
         run: cross test --locked --bin foo --target ${{ matrix.target }}
       - name: Build release binary
         run: cross build --release --locked --target ${{ matrix.target }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: foo-${{ matrix.target }}
+          path: target/${{ matrix.target }}/release/foo
+          if-no-files-found: error
+
+  # Same idea as `emulated`, without `cross`: cross's latest release predates the
+  # newer images, so use Ubuntu's cross gcc, glibc sysroot, and qemu-user.
+  qemu:
+    name: ${{ matrix.target }} (QEMU${{ matrix.experimental && ', experimental' || '' }})
+    runs-on: ubuntu-24.04
+    continue-on-error: ${{ matrix.experimental }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { target: s390x-unknown-linux-gnu, gcc: s390x-linux-gnu, qemu: s390x, experimental: false }
+          - { target: armv7-unknown-linux-gnueabihf, gcc: arm-linux-gnueabihf, qemu: arm, experimental: false }
+          - { target: powerpc-unknown-linux-gnu, gcc: powerpc-linux-gnu, qemu: ppc, experimental: false }
+          - { target: sparc64-unknown-linux-gnu, gcc: sparc64-linux-gnu, qemu: sparc64, experimental: false }
+          - { target: mips-unknown-linux-gnu, gcc: mips-linux-gnu, qemu: mips, experimental: true }
+          - { target: mipsel-unknown-linux-gnu, gcc: mipsel-linux-gnu, qemu: mipsel, experimental: true }
+          - { target: mips64-unknown-linux-gnuabi64, gcc: mips64-linux-gnuabi64, qemu: mips64, experimental: true }
+          - { target: mips64el-unknown-linux-gnuabi64, gcc: mips64el-linux-gnuabi64, qemu: mips64el, experimental: true }
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install cross gcc, glibc sysroot, and QEMU
+        run: sudo apt-get update && sudo apt-get install -y gcc-${{ matrix.gcc }} qemu-user
+      - uses: dtolnay/rust-toolchain@stable
+        if: ${{ !matrix.experimental }}
+        with:
+          targets: ${{ matrix.target }}
+      # Tier 3 targets ship no prebuilt std, so build it from source on nightly.
+      - uses: dtolnay/rust-toolchain@nightly
+        if: ${{ matrix.experimental }}
+        with:
+          components: rust-src
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+      - name: Point cargo at the cross linker and QEMU
+        run: |
+          upper=$(echo "${{ matrix.target }}" | tr 'a-z-' 'A-Z_')
+          echo "CARGO_TARGET_${upper}_LINKER=${{ matrix.gcc }}-gcc" >> "$GITHUB_ENV"
+          # The cross glibc sysroot lets qemu-user run dynamically linked binaries.
+          echo "CARGO_TARGET_${upper}_RUNNER=qemu-${{ matrix.qemu }} -L /usr/${{ matrix.gcc }}" >> "$GITHUB_ENV"
+          if [ "${{ matrix.experimental }}" = true ]; then
+            echo "CARGO_UNSTABLE_BUILD_STD=std" >> "$GITHUB_ENV"
+          fi
+      # Only the unit tests (`--bin foo`) run under QEMU: the integration tests in
+      # tests/cli.rs need a rustc for the target.
+      - name: Unit tests
+        run: cargo test --locked --bin foo --target ${{ matrix.target }}
+      - name: Build release binary
+        run: cargo build --release --locked --target ${{ matrix.target }}
       - uses: actions/upload-artifact@v4
         with:
           name: foo-${{ matrix.target }}

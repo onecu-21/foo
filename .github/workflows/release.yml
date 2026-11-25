@@ -63,7 +63,7 @@ jobs:
           Prebuilt binaries for Linux, Windows, and macOS. Every binary was built by CI, and the release is only published when all CI jobs pass.
 
           - Full tests ran on Linux, Windows, and macOS (Intel) for x64, x86 (Linux and Windows), and arm64 (Linux and Windows).
-          - Linux powerpc64, powerpc64le, and riscv64 are built and unit-tested under QEMU only.
+          - Linux powerpc64, powerpc64le, riscv64, s390x, ARMv7, PowerPC32, and SPARC64 are built and unit-tested under QEMU only. MIPS32 and MIPS64 (big- and little-endian) are experimental: Rust tier 3, built from source on nightly and unit-tested under QEMU.
           - macOS on Apple silicon is not built or tested in CI. I think it'll work.... maybe? Build from source there with `cargo install --path . --locked`.
           - riscv32 is not provided: Rust has no hosted target for it.
 

@@ -85,10 +85,12 @@ In a problem folder opened by `foo start` or `foo open`, press `F5`. If a list o
 | `go` | `go` | `main.go` |
 | `javascript` | `node` | `main.js` |
 | `kotlin` | `kotlinc` and `java` (Kotlin/JVM) | `Main.kt` |
+| `csharp` (alias `dotnet`) | `dotnet` (.NET SDK 10 or later) | `main.cs` |
+| `cobol` (alias `cob`) | `cobc` (GnuCOBOL) | `main.cob` |
 
-If `foo` cannot find the compiler, install it and reopen your terminal, or point to it with `foo config --compiler <path>`. C and C++ use Clang by default. If you configure MSVC, `foo` stops with `HeresyError: Thou shalt use Clang.` and shows how to set up Clang. Java runs in JDK 21 source-file mode. Native executables and Kotlin build output are written to a temporary folder.
+If `foo` cannot find the compiler, install it and reopen your terminal, or point to it with `foo config --compiler <path>`. C and C++ use Clang by default. If you configure MSVC, `foo` stops with `HeresyError: Thou shalt use Clang.` and shows how to set up Clang. Java runs in JDK 21 source-file mode. C# runs in .NET 10 file-based app mode (`dotnet run main.cs`). COBOL is built with `cobc -x -free` (free-format source). Native executables and Kotlin build output are written to a temporary folder.
 
-For code navigation and completion, install extensions from VS Code's Extensions tab or with `code --install-extension <ID>`. Common extension IDs are `llvm-vs-code-extensions.vscode-clangd` for C/C++, `ms-python.python` for Python and PyPy, `rust-lang.rust-analyzer` for Rust, `vscjava.vscode-java-pack` for Java, and `golang.go` for Go.
+For code navigation and completion, install extensions from VS Code's Extensions tab or with `code --install-extension <ID>`. Common extension IDs are `llvm-vs-code-extensions.vscode-clangd` for C/C++, `ms-python.python` for Python and PyPy, `rust-lang.rust-analyzer` for Rust, `vscjava.vscode-java-pack` for Java, and `golang.go` for Go, and `ms-dotnettools.csharp` for C#, and `bitlang.cobol` for COBOL
 
 ## Files and settings
 
