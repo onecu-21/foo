@@ -17,7 +17,7 @@ foo init
 
 `foo init` asks for your language and workspace folder. The defaults are `cpp` and a `boj/` folder in the current directory. If your compiler and `code` are on `PATH`, `foo` finds them; otherwise you can enter the executable paths yourself. If VS Code was already running before you installed anything, restart it so it picks up the new `PATH`. On macOS, register `code` with the `Shell Command: Install 'code' command in PATH` command in the Command Palette. See the [VS Code command-line docs](https://code.visualstudio.com/docs/configure/command-line).
 
-macOS on Apple silicon (arm64) is not built or tested in CI, so `foo` may not work there. Intel macOS, Linux, and Windows are tested.
+macOS on Apple silicon (arm64) is not built or tested in CI. I think it'll work.... maybe? Intel macOS, Linux, and Windows are tested.
 
 To build by hand, run `cargo build --release --locked` and copy `target/release/foo` (`target\release\foo.exe` on Windows) into a folder on your `PATH`. The F5 run configuration uses the same `foo`.
 

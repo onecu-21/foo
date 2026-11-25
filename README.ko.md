@@ -17,7 +17,7 @@ foo init
 
 `foo init`에서 사용할 언어와 작업 폴더를 선택합니다. 기본값은 `cpp`와 현재 폴더 아래의 `boj/`입니다. 컴파일러 및 `code`가 `PATH`에 있으면 탐색하고, 필요하면 실행 파일 경로를 직접 입력할 수 있습니다. 기존 VS Code 프로세스가 설치 전 `PATH`를 사용하고 있으면 VS Code를 다시 시작합니다. macOS에서는 명령 팔레트의 `Shell Command: Install 'code' command in PATH`로 `code`를 등록할 수 있습니다. [VS Code 명령줄 문서](https://code.visualstudio.com/docs/configure/command-line)
 
-Apple silicon(arm64) macOS는 CI에서 빌드나 테스트를 하지 않아 동작을 확인하지 못했습니다. Intel macOS, Linux, Windows는 CI에서 테스트합니다.
+Apple silicon(arm64) macOS는 CI에서 빌드나 테스트를 하지 않습니다. 아마 될 것 같은데... 모르겠네요? Intel macOS, Linux, Windows는 CI에서 테스트합니다.
 
 직접 빌드하려면 `cargo build --release --locked`를 실행하고, `target/release/foo` 또는 Windows의 `target\release\foo.exe`를 `PATH`에 포함된 폴더에 복사합니다. F5 실행에도 같은 `foo`를 사용합니다.
 

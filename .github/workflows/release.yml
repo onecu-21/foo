@@ -64,7 +64,7 @@ jobs:
 
           - Full tests ran on Linux, Windows, and macOS (Intel) for x64, x86 (Linux and Windows), and arm64 (Linux and Windows).
           - Linux powerpc64, powerpc64le, and riscv64 are built and unit-tested under QEMU only.
-          - macOS on Apple silicon is not built or tested in CI, so it is unverified. Build from source there with `cargo install --path . --locked`.
+          - macOS on Apple silicon is not built or tested in CI. I think it'll work.... maybe? Build from source there with `cargo install --path . --locked`.
           - riscv32 is not provided: Rust has no hosted target for it.
 
           Verify downloads with `SHA256SUMS.txt`.
