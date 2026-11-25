@@ -5,6 +5,7 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
@@ -21,7 +22,8 @@ env:
 # Native runners (clippy, full tests, release build):
 #   Linux    x64, x86, arm64
 #   Windows  x64, x86, arm64
-#   macOS    x64, arm64
+#   macOS    x64 only. Apple silicon (aarch64-apple-darwin) is deliberately not built
+#            or tested here, so it is unverified.
 #
 # Emulated with cross + QEMU (release build and unit tests only, see below):
 #   Linux    powerpc64 (big-endian), powerpc64le, riscv64
@@ -53,7 +55,6 @@ jobs:
           - { os: windows-latest, target: x86_64-pc-windows-msvc }
           - { os: windows-latest, target: i686-pc-windows-msvc }
           - { os: windows-11-arm, target: aarch64-pc-windows-msvc }
-          - { os: macos-latest, target: aarch64-apple-darwin }
           - { os: macos-15-intel, target: x86_64-apple-darwin }
     steps:
       - uses: actions/checkout@v4

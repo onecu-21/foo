@@ -1,0 +1,77 @@
+name: Release
+
+# Pushing a v<major>.<minor>.<patch> tag runs the full CI and publishes a GitHub
+# release only if every CI job passes.
+on:
+  push:
+    tags: ["v[0-9]+.[0-9]+.[0-9]+*"]
+
+permissions:
+  contents: read
+
+jobs:
+  verify-version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tag must match the version in Cargo.toml
+        run: |
+          version=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match Cargo.toml version $version" >&2
+            exit 1
+          fi
+
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  release:
+    needs: [verify-version, ci]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: foo-*
+          path: dist
+      - name: Package binaries
+        run: |
+          mkdir -p out stage
+          for dir in dist/foo-*; do
+            target=${dir#dist/foo-}
+            name="foo-$GITHUB_REF_NAME-$target"
+            mkdir -p "stage/$name"
+            cp LICENSE README.md "stage/$name/"
+            if [ -f "$dir/foo.exe" ]; then
+              cp "$dir/foo.exe" "stage/$name/"
+              (cd stage && zip -qr "../out/$name.zip" "$name")
+            else
+              cp "$dir/foo" "stage/$name/"
+              chmod +x "stage/$name/foo"
+              tar -czf "out/$name.tar.gz" -C stage "$name"
+            fi
+          done
+          (cd out && sha256sum * > SHA256SUMS.txt)
+          ls -l out
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat > notes.md <<'NOTES'
+          Prebuilt binaries for Linux, Windows, and macOS. Every binary was built by CI, and the release is only published when all CI jobs pass.
+
+          - Full tests ran on Linux, Windows, and macOS (Intel) for x64, x86 (Linux and Windows), and arm64 (Linux and Windows).
+          - Linux powerpc64, powerpc64le, and riscv64 are built and unit-tested under QEMU only.
+          - macOS on Apple silicon is not built or tested in CI, so it is unverified. Build from source there with `cargo install --path . --locked`.
+          - riscv32 is not provided: Rust has no hosted target for it.
+
+          Verify downloads with `SHA256SUMS.txt`.
+          NOTES
+          sed -i 's/^          //' notes.md
+          gh release create "$GITHUB_REF_NAME" out/* \
+            --title "$GITHUB_REF_NAME" \
+            --notes-file notes.md \
+            --generate-notes \
+            --verify-tag
