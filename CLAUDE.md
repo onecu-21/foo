@@ -33,6 +33,8 @@ Flow: `main.rs` → `cli.rs` (clap derive) → `app::execute`, which dispatches 
 - **Per-problem language**: `<problem dir>/.foo-language` records which language a problem was created with. It takes precedence over the default language in the config. The compiler override in the config applies only when the problem's language equals the default language.
 - **Re-importing** a stored workbook keeps the current problem if it is still in the list; otherwise it keeps the old index, clamped to the new length (see `app::remember`).
 
+CI (`.github/workflows/ci.yml`): fmt once, then clippy + full tests + release build on native runners (Linux/Windows x64, x86, arm64; macOS x64, arm64), and release build + unit tests only under `cross`/QEMU for Linux powerpc64, powerpc64le, riscv64 (the integration tests need a native `rustc`). riscv32 is intentionally absent: no hosted Rust target.
+
 Out of scope by design (per README): login, auto-submit, collecting solutions, AI solving/testcase generation.
 
 # Very Very Important

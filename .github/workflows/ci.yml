@@ -1,0 +1,115 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+# Platform coverage
+#
+# Native runners (clippy, full tests, release build):
+#   Linux    x64, x86, arm64
+#   Windows  x64, x86, arm64
+#   macOS    x64, arm64
+#
+# Emulated with cross + QEMU (release build and unit tests only, see below):
+#   Linux    powerpc64 (big-endian), powerpc64le, riscv64
+#
+# Not built, because Rust or the OS has no usable target:
+#   riscv32 (no hosted Rust target on any of these OSes; glibc has no rv32 port),
+#   x86 / powerpc / riscv on macOS, powerpc / riscv on Windows.
+
+jobs:
+  fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - run: cargo fmt --check
+
+  native:
+    name: ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, target: x86_64-unknown-linux-gnu }
+          - { os: ubuntu-latest, target: i686-unknown-linux-gnu, multilib: true }
+          - { os: ubuntu-24.04-arm, target: aarch64-unknown-linux-gnu }
+          - { os: windows-latest, target: x86_64-pc-windows-msvc }
+          - { os: windows-latest, target: i686-pc-windows-msvc }
+          - { os: windows-11-arm, target: aarch64-pc-windows-msvc }
+          - { os: macos-latest, target: aarch64-apple-darwin }
+          - { os: macos-15-intel, target: x86_64-apple-darwin }
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install 32-bit C toolchain
+        if: matrix.multilib
+        run: sudo apt-get update && sudo apt-get install -y gcc-multilib
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+      - name: Clippy
+        run: cargo clippy --locked --all-targets --target ${{ matrix.target }} -- -D warnings
+      # The integration tests compile a real Rust solution with the host rustc,
+      # so they need a working native toolchain; that is why they run here.
+      - name: Test
+        run: cargo test --locked --target ${{ matrix.target }}
+      - name: Build release binary
+        run: cargo build --release --locked --target ${{ matrix.target }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: foo-${{ matrix.target }}
+          path: |
+            target/${{ matrix.target }}/release/foo
+            target/${{ matrix.target }}/release/foo.exe
+          if-no-files-found: error
+
+  emulated:
+    name: ${{ matrix.target }} (QEMU)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - powerpc64-unknown-linux-gnu
+          - powerpc64le-unknown-linux-gnu
+          - riscv64gc-unknown-linux-gnu
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cross
+      # Only the unit tests (`--bin foo`) run under QEMU: the integration tests in
+      # tests/cli.rs need a rustc for the target inside the emulated environment.
+      - name: Unit tests
+        run: cross test --locked --bin foo --target ${{ matrix.target }}
+      - name: Build release binary
+        run: cross build --release --locked --target ${{ matrix.target }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: foo-${{ matrix.target }}
+          path: target/${{ matrix.target }}/release/foo
+          if-no-files-found: error
