@@ -1,0 +1,15 @@
+[package]
+name = "foo"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.89"
+description = "A local command-line workspace helper for Baekjoon Online Judge"
+
+[dependencies]
+clap = { version = "4.5", features = ["derive"] }
+reqwest = { version = "0.12", default-features = false }
+scraper = { version = "0.24", default-features = false }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tempfile = "3"
+toml = "0.9"
