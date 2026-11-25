@@ -19,6 +19,8 @@ foo init
 
 Apple silicon(arm64) macOS는 CI에서 빌드나 테스트를 하지 않습니다. 아마 될 것 같은데... 모르겠네요? Intel macOS, Linux, Windows는 CI에서 테스트합니다.
 
+`main`의 Nightly 빌드는 [Nightly 릴리스](https://github.com/onecu-21/foo/releases/tag/nightly) 페이지에 있습니다.
+
 직접 빌드하려면 `cargo build --release --locked`를 실행하고, `target/release/foo` 또는 Windows의 `target\release\foo.exe`를 `PATH`에 포함된 폴더에 복사합니다. F5 실행에도 같은 `foo`를 사용합니다.
 
 ## 문제집 등록과 풀이
