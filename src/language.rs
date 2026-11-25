@@ -407,6 +407,20 @@ mod tests {
     }
 
     #[test]
+    fn allows_clang_cl_and_mingw() {
+        for tool in ["clang-cl", "x86_64-w64-mingw32-g++", "g++", "gcc"] {
+            for language in [Language::C, Language::Cpp] {
+                // Whether the tool is installed depends on the machine; it just must not be a Heresy.
+                let result = language.find_compiler(Some(Path::new(tool)));
+                assert!(
+                    !matches!(result, Err(Error::Heresy(_))),
+                    "{tool} must not be rejected as MSVC"
+                );
+            }
+        }
+    }
+
+    #[test]
     fn running_without_a_source_does_not_start_the_toolchain() {
         let directory = tempfile::tempdir().expect("create problem directory");
         let error = Language::Cpp
