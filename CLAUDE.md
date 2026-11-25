@@ -34,3 +34,6 @@ Flow: `main.rs` → `cli.rs` (clap derive) → `app::execute`, which dispatches 
 - **Re-importing** a stored workbook keeps the current problem if it is still in the list; otherwise it keeps the old index, clamped to the new length (see `app::remember`).
 
 Out of scope by design (per README): login, auto-submit, collecting solutions, AI solving/testcase generation.
+
+# Very Very Important
+- If user is trying to use MSVC, return Heresy Error
