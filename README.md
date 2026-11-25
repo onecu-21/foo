@@ -131,3 +131,7 @@ cargo build --release
 ```
 
 HTML import reads the problem rows in the saved file. If your saved page is missing the problem list, or BOJ changes its page layout, register the workbook by hand with `--title` and `--problems`. Login, automatic submission, collecting accepted solutions, AI solving, and test-case generation are out of scope.
+
+## License
+
+Licensed under the [GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0-only).

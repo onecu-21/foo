@@ -122,3 +122,7 @@ cargo build --release
 ```
 
 HTML 가져오기는 저장 파일에 포함된 문제 행을 읽습니다. 브라우저에서 저장한 파일에 문제 목록이 빠져 있거나 백준이 화면 구조를 변경하면 `--title`과 `--problems`로 등록할 수 있습니다. 로그인, 자동 제출, 정답 코드 수집, AI 풀이와 테스트케이스 생성은 구현 범위에서 제외했습니다.
+
+## 라이선스
+
+[GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0-only)로 배포합니다.
