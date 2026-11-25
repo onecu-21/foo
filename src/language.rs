@@ -24,6 +24,8 @@ pub enum Language {
     #[value(name = "javascript", alias = "js")]
     JavaScript,
     Kotlin,
+    #[value(name = "csharp", alias = "c#", alias = "cs", alias = "dotnet")]
+    CSharp,
 }
 
 impl Language {
@@ -38,6 +40,7 @@ impl Language {
             Self::Go => "go",
             Self::JavaScript => "javascript",
             Self::Kotlin => "kotlin",
+            Self::CSharp => "csharp",
         }
     }
 
@@ -51,6 +54,7 @@ impl Language {
             Self::Go => "main.go",
             Self::JavaScript => "main.js",
             Self::Kotlin => "Main.kt",
+            Self::CSharp => "main.cs",
         }
     }
 
@@ -65,6 +69,7 @@ impl Language {
             Self::Go => "go",
             Self::JavaScript => "node",
             Self::Kotlin => "kotlinc",
+            Self::CSharp => "dotnet",
         }
     }
 
@@ -86,6 +91,9 @@ impl Language {
             Self::Go => "package main\n\nfunc main() {\n}\n",
             Self::JavaScript => "'use strict';\n\nfunction main() {\n}\n\nmain();\n",
             Self::Kotlin => "fun main() {\n}\n",
+            Self::CSharp => {
+                "using System;\n\nclass Program\n{\n    static void Main()\n    {\n    }\n}\n"
+            }
         }
     }
 
@@ -96,6 +104,7 @@ impl Language {
             Self::Rust => Some("rust-lang.rust-analyzer"),
             Self::Java => Some("vscjava.vscode-java-pack"),
             Self::Go => Some("golang.go"),
+            Self::CSharp => Some("ms-dotnettools.csharp"),
             Self::JavaScript | Self::Kotlin => None,
         }
     }
@@ -140,6 +149,12 @@ impl Language {
                     command.arg("-3");
                 }
                 return execute(command.arg(source), "Run");
+            }
+            Self::CSharp => {
+                return execute(
+                    command.env("DOTNET_NOLOGO", "1").args(["run", source]),
+                    "Build and run (.NET SDK 10+)",
+                );
             }
             Self::Java => {
                 return execute(
@@ -201,6 +216,7 @@ impl Language {
             Self::Go => "Install the Go toolchain.",
             Self::JavaScript => "Install Node.js.",
             Self::Kotlin => "Install the Kotlin/JVM command-line compiler and a JDK.",
+            Self::CSharp => "Install the .NET SDK 10 or later.",
         }
     }
 }
@@ -217,6 +233,7 @@ impl fmt::Display for Language {
             Self::Go => "Go",
             Self::JavaScript => "JavaScript",
             Self::Kotlin => "Kotlin",
+            Self::CSharp => "C#",
         })
     }
 }
@@ -404,6 +421,19 @@ mod tests {
                     .contains("HeresyError: Thou shalt use Clang.")
             );
         }
+    }
+
+    #[test]
+    fn csharp_has_dotnet_aliases() {
+        for name in ["csharp", "c#", "cs", "dotnet"] {
+            assert_eq!(
+                Language::from_str(name, true),
+                Ok(Language::CSharp),
+                "{name}"
+            );
+        }
+        assert_eq!(Language::CSharp.source_name(), "main.cs");
+        assert_eq!(Language::CSharp.default_compiler(), "dotnet");
     }
 
     #[test]
