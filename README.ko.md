@@ -78,8 +78,9 @@ foo remember https://www.acmicpc.net/workbook/view/42 --title "입출력 연습"
 | `javascript` | `node` | `main.js` |
 | `kotlin` | Kotlin/JVM의 `kotlinc`, `java` | `Main.kt` |
 | `csharp` (별칭 `dotnet`) | `dotnet` (.NET SDK 10 이상) | `main.cs` |
+| `cobol` (별칭 `cob`) | GnuCOBOL의 `cobc` | `main.cob` |
 
-컴파일러를 찾을 수 없으면 설치 후 터미널을 다시 열거나 `foo config --compiler <경로>`로 지정합니다. C/C++는 Clang을 기본으로 사용합니다. MSVC로 지정하면 `HeresyError: Thou shalt use Clang.`과 함께 Clang 설정 방법을 표시합니다. Java는 JDK 21 소스 파일 모드로 실행합니다. C#은 .NET 10 파일 기반 앱 모드(`dotnet run main.cs`)로 실행합니다. 네이티브 실행 파일과 Kotlin 빌드 결과는 임시 폴더에 생성합니다.
+컴파일러를 찾을 수 없으면 설치 후 터미널을 다시 열거나 `foo config --compiler <경로>`로 지정합니다. C/C++는 Clang을 기본으로 사용합니다. MSVC로 지정하면 `HeresyError: Thou shalt use Clang.`과 함께 Clang 설정 방법을 표시합니다. Java는 JDK 21 소스 파일 모드로 실행합니다. C#은 .NET 10 파일 기반 앱 모드(`dotnet run main.cs`)로 실행합니다. COBOL은 `cobc -x -free`(자유 형식 소스)로 빌드합니다. 네이티브 실행 파일과 Kotlin 빌드 결과는 임시 폴더에 생성합니다.
 
 코드 탐색과 완성 기능이 필요하면 VS Code의 확장 탭에서 설치하거나 `code --install-extension <ID>`를 실행합니다. 자주 쓰는 확장 ID로는 C/C++의 `llvm-vs-code-extensions.vscode-clangd`, Python/PyPy의 `ms-python.python`, Rust의 `rust-lang.rust-analyzer`, Java의 `vscjava.vscode-java-pack`, Go의 `golang.go`가 있습니다.
 
