@@ -29,16 +29,17 @@ env:
 #
 # Emulated with QEMU (release build and unit tests only, see below):
 #   Linux    powerpc64 (big-endian), powerpc64le, riscv64        (cross)
-#   Linux    s390x, ARM32 (armv7 hard-float), PowerPC32, SPARC64        (apt cross gcc)
-#   Linux    LoongArch64 (static musl, linked with clang + lld)
-#   Linux    Hexagon (Qualcomm toolchain from CodeLinaro; tier 3, experimental)
-#   Linux    MIPS32 BE/LE, MIPS64 BE/LE, m68k                    (apt cross gcc,
+#   Linux    s390x, ARM32 (armv7 hard-float), PowerPC32, SPARC64 (apt cross gcc)
+#   Linux    MIPS32 BE/LE, MIPS64 BE/LE                          (apt cross gcc;
 #            Rust tier 3: nightly + build-std, so "experimental": a failure here
 #            does not fail CI, and a binary is only published if it fully passed)
 #
-# Not built, because there is no usable toolchain:
+# Not built:
 #   riscv32 (no glibc port and no tier 1/2 Rust target),
 #   SPARC32 (no packaged glibc cross toolchain),
+#   LoongArch64, m68k, Hexagon (dropped on purpose: Ubuntu has no LoongArch cross gcc,
+#   Rust's std does not compile for m68k yet, and Hexagon needs a 1.2 GB third-party
+#   toolchain download),
 #   x86 / powerpc / riscv on macOS, powerpc / riscv on Windows.
 
 jobs:
@@ -133,7 +134,7 @@ jobs:
           if-no-files-found: error
 
   # Same idea as `emulated`, without `cross`: cross's latest release predates the
-  # LoongArch and m68k images, so use Ubuntu's cross gcc, glibc sysroot, and qemu-user.
+  # newer images, so use Ubuntu's cross gcc, glibc sysroot, and qemu-user.
   qemu:
     name: ${{ matrix.target }} (QEMU${{ matrix.experimental && ', experimental' || '' }})
     runs-on: ubuntu-24.04
@@ -145,20 +146,15 @@ jobs:
           - { target: s390x-unknown-linux-gnu, gcc: s390x-linux-gnu, qemu: s390x, experimental: false }
           - { target: armv7-unknown-linux-gnueabihf, gcc: arm-linux-gnueabihf, qemu: arm, experimental: false }
           - { target: powerpc-unknown-linux-gnu, gcc: powerpc-linux-gnu, qemu: ppc, experimental: false }
-          - { target: loongarch64-unknown-linux-musl, qemu: loongarch64, linker: clang, apt: "clang lld", rustflags: "-C link-arg=--target=loongarch64-unknown-linux-musl -C link-arg=-fuse-ld=lld -C link-self-contained=yes", experimental: false }
           - { target: sparc64-unknown-linux-gnu, gcc: sparc64-linux-gnu, qemu: sparc64, experimental: false }
           - { target: mips-unknown-linux-gnu, gcc: mips-linux-gnu, qemu: mips, experimental: true }
           - { target: mipsel-unknown-linux-gnu, gcc: mipsel-linux-gnu, qemu: mipsel, experimental: true }
           - { target: mips64-unknown-linux-gnuabi64, gcc: mips64-linux-gnuabi64, qemu: mips64, experimental: true }
           - { target: mips64el-unknown-linux-gnuabi64, gcc: mips64el-linux-gnuabi64, qemu: mips64el, experimental: true }
-          - { target: m68k-unknown-linux-gnu, gcc: m68k-linux-gnu, qemu: m68k, rustflags: "-C relocation-model=static -C link-arg=-no-pie -C target-cpu=M68040", opt_level: 2, experimental: true }
     steps:
       - uses: actions/checkout@v4
-      - name: Install cross toolchain and QEMU
-        run: |
-          pkgs="qemu-user ${{ matrix.apt }}"
-          if [ -n "${{ matrix.gcc }}" ]; then pkgs="$pkgs gcc-${{ matrix.gcc }}"; fi
-          sudo apt-get update && sudo apt-get install -y $pkgs
+      - name: Install cross gcc, glibc sysroot, and QEMU
+        run: sudo apt-get update && sudo apt-get install -y gcc-${{ matrix.gcc }} qemu-user
       - uses: dtolnay/rust-toolchain@stable
         if: ${{ !matrix.experimental }}
         with:
@@ -174,23 +170,11 @@ jobs:
       - name: Point cargo at the cross linker and QEMU
         run: |
           upper=$(echo "${{ matrix.target }}" | tr 'a-z-' 'A-Z_')
-          if [ -n "${{ matrix.gcc }}" ]; then
-            # glibc target: Ubuntu's cross gcc, and its sysroot for qemu-user
-            echo "CARGO_TARGET_${upper}_LINKER=${{ matrix.gcc }}-gcc" >> "$GITHUB_ENV"
-            echo "CARGO_TARGET_${upper}_RUNNER=qemu-${{ matrix.qemu }} -L /usr/${{ matrix.gcc }}" >> "$GITHUB_ENV"
-          else
-            # static musl target: Rust bundles libc, so no sysroot is needed
-            echo "CARGO_TARGET_${upper}_LINKER=${{ matrix.linker }}" >> "$GITHUB_ENV"
-            echo "CARGO_TARGET_${upper}_RUNNER=qemu-${{ matrix.qemu }}" >> "$GITHUB_ENV"
-          fi
-          if [ -n "${{ matrix.rustflags }}" ]; then
-            echo "CARGO_TARGET_${upper}_RUSTFLAGS=${{ matrix.rustflags }}" >> "$GITHUB_ENV"
-          fi
+          echo "CARGO_TARGET_${upper}_LINKER=${{ matrix.gcc }}-gcc" >> "$GITHUB_ENV"
+          # The cross glibc sysroot lets qemu-user run dynamically linked binaries.
+          echo "CARGO_TARGET_${upper}_RUNNER=qemu-${{ matrix.qemu }} -L /usr/${{ matrix.gcc }}" >> "$GITHUB_ENV"
           if [ "${{ matrix.experimental }}" = true ]; then
             echo "CARGO_UNSTABLE_BUILD_STD=std" >> "$GITHUB_ENV"
-          fi
-          if [ -n "${{ matrix.opt_level }}" ]; then
-            echo "CARGO_PROFILE_DEV_OPT_LEVEL=${{ matrix.opt_level }}" >> "$GITHUB_ENV"
           fi
       # Only the unit tests (`--bin foo`) run under QEMU: the integration tests in
       # tests/cli.rs need a rustc for the target.
@@ -202,69 +186,4 @@ jobs:
         with:
           name: foo-${{ matrix.target }}
           path: target/${{ matrix.target }}/release/foo
-          if-no-files-found: error
-
-  # Hexagon (Qualcomm DSP) has no distro cross compiler, so this downloads Qualcomm's
-  # open-source toolchain from CodeLinaro. It is a large third-party binary download:
-  # the version is pinned and the archive is checked against a pinned SHA-256 (the value
-  # the server reported when the pin was made). Rust tier 3: nightly + build-std.
-  hexagon:
-    name: hexagon-unknown-linux-musl (QEMU, experimental)
-    runs-on: ubuntu-24.04
-    continue-on-error: true
-    env:
-      HEXAGON_VERSION: "21.1.8"
-      HEXAGON_SHA256: 1a2336795a7a0d9a68779eae2b96293ca01669cd08f6cd3b8b6ca8600f5b41c0
-      TARGET: hexagon-unknown-linux-musl
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@nightly
-        with:
-          components: rust-src
-      - uses: Swatinem/rust-cache@v2
-        with:
-          key: hexagon-unknown-linux-musl
-      - name: Install the Hexagon toolchain and QEMU
-        run: |
-          sudo apt-get update && sudo apt-get install -y zstd qemu-user
-          name="clang+llvm-${HEXAGON_VERSION}-cross-hexagon-unknown-linux-musl"
-          curl -fsSL --retry 3 -o "$RUNNER_TEMP/hexagon.tar.zst" \
-            "https://artifacts.codelinaro.org/artifactory/codelinaro-toolchain-for-hexagon/${HEXAGON_VERSION}/${name}.tar.zst"
-          echo "${HEXAGON_SHA256}  $RUNNER_TEMP/hexagon.tar.zst" | sha256sum -c -
-          mkdir -p "$HOME/hexagon"
-          tar --zstd -xf "$RUNNER_TEMP/hexagon.tar.zst" -C "$HOME/hexagon"
-          rm "$RUNNER_TEMP/hexagon.tar.zst"
-
-          clang=$(find "$HOME/hexagon" -name hexagon-unknown-linux-musl-clang \( -type f -o -type l \) | head -1)
-          if [ -z "$clang" ]; then
-            echo "hexagon-unknown-linux-musl-clang not found; archive layout:" >&2
-            find "$HOME/hexagon" -maxdepth 4 | head -60 >&2
-            exit 1
-          fi
-          bin=$(dirname "$clang")
-          root=$(dirname "$bin")
-          sysroot="$root/target/hexagon-unknown-linux-musl/usr"
-          qemu=$(find "$root" -name qemu-hexagon -type f | head -1)
-          if [ -z "$qemu" ]; then qemu=$(command -v qemu-hexagon || true); fi
-          echo "clang=$clang sysroot=$sysroot qemu=$qemu"
-          ls "$sysroot" >/dev/null
-          test -n "$qemu"
-
-          upper=HEXAGON_UNKNOWN_LINUX_MUSL
-          echo "$bin" >> "$GITHUB_PATH"
-          {
-            echo "CARGO_TARGET_${upper}_LINKER=hexagon-unknown-linux-musl-clang"
-            echo "CARGO_TARGET_${upper}_RUNNER=$qemu -L $sysroot"
-            echo "CARGO_TARGET_${upper}_RUSTFLAGS=-C target-cpu=hexagonv73"
-            echo "CARGO_UNSTABLE_BUILD_STD=std"
-            echo "CARGO_UNSTABLE_BUILD_STD_FEATURES=llvm-libunwind"
-          } >> "$GITHUB_ENV"
-      - name: Unit tests
-        run: cargo test --locked --bin foo --target ${{ env.TARGET }}
-      - name: Build release binary
-        run: cargo build --release --locked --target ${{ env.TARGET }}
-      - uses: actions/upload-artifact@v4
-        with:
-          name: foo-${{ env.TARGET }}
-          path: target/${{ env.TARGET }}/release/foo
           if-no-files-found: error
