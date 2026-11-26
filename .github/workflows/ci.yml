@@ -6,6 +6,11 @@ on:
   pull_request:
   workflow_dispatch:
   workflow_call:
+    inputs:
+      ref:
+        description: Commit to build instead of the one that triggered the caller
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -47,6 +52,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
@@ -68,6 +75,8 @@ jobs:
           - { os: macos-15-intel, target: x86_64-apple-darwin }
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
       - name: Install 32-bit C toolchain
         if: matrix.multilib
         run: sudo apt-get update && sudo apt-get install -y gcc-multilib
@@ -114,6 +123,8 @@ jobs:
           - riscv64gc-unknown-linux-gnu
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
@@ -153,6 +164,8 @@ jobs:
           - { target: mips64el-unknown-linux-gnuabi64, gcc: mips64el-linux-gnuabi64, qemu: mips64el, experimental: true }
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
       - name: Install cross gcc, glibc sysroot, and QEMU
         run: sudo apt-get update && sudo apt-get install -y gcc-${{ matrix.gcc }} qemu-user
       - uses: dtolnay/rust-toolchain@stable

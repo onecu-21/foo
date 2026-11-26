@@ -28,6 +28,13 @@ pub enum Language {
     CSharp,
     #[value(alias = "cob")]
     Cobol,
+    #[value(alias = "rb")]
+    Ruby,
+    Swift,
+    #[value(alias = "bf")]
+    Brainfuck,
+    #[value(alias = "아희")]
+    Aheui,
 }
 
 impl Language {
@@ -44,6 +51,10 @@ impl Language {
             Self::Kotlin => "kotlin",
             Self::CSharp => "csharp",
             Self::Cobol => "cobol",
+            Self::Ruby => "ruby",
+            Self::Swift => "swift",
+            Self::Brainfuck => "brainfuck",
+            Self::Aheui => "aheui",
         }
     }
 
@@ -59,6 +70,10 @@ impl Language {
             Self::Kotlin => "Main.kt",
             Self::CSharp => "main.cs",
             Self::Cobol => "main.cob",
+            Self::Ruby => "main.rb",
+            Self::Swift => "main.swift",
+            Self::Brainfuck => "main.bf",
+            Self::Aheui => "main.aheui",
         }
     }
 
@@ -75,6 +90,10 @@ impl Language {
             Self::Kotlin => "kotlinc",
             Self::CSharp => "dotnet",
             Self::Cobol => "cobc",
+            Self::Ruby => "ruby",
+            Self::Swift => "swiftc",
+            Self::Brainfuck => "brainfuck",
+            Self::Aheui => "aheui",
         }
     }
 
@@ -99,6 +118,12 @@ impl Language {
             Self::CSharp => {
                 "using System;\n\nclass Program\n{\n    static void Main()\n    {\n    }\n}\n"
             }
+            Self::Ruby => "def main\nend\n\nmain\n",
+            Self::Swift => "import Foundation\n\n",
+            // Every character that is not a command is a comment, so start empty.
+            Self::Brainfuck => "\n",
+            // `희` ends the program.
+            Self::Aheui => "희\n",
             Self::Cobol => concat!(
                 "IDENTIFICATION DIVISION.\n",
                 "PROGRAM-ID. MAIN.\n\n",
@@ -117,7 +142,9 @@ impl Language {
             Self::Go => Some("golang.go"),
             Self::CSharp => Some("ms-dotnettools.csharp"),
             Self::Cobol => Some("bitlang.cobol"),
-            Self::JavaScript | Self::Kotlin => None,
+            Self::Ruby => Some("Shopify.ruby-lsp"),
+            Self::Swift => Some("swiftlang.swift-vscode"),
+            Self::JavaScript | Self::Kotlin | Self::Brainfuck | Self::Aheui => None,
         }
     }
 
@@ -156,18 +183,18 @@ impl Language {
         let mut command = Command::new(compiler);
         command.current_dir(directory);
         let command = match self {
-            Self::Python | Self::PyPy | Self::JavaScript => {
+            Self::Python
+            | Self::PyPy
+            | Self::JavaScript
+            | Self::Ruby
+            | Self::Brainfuck
+            | Self::Aheui => {
                 if self == Self::Python && cfg!(windows) && executable_is(compiler, "py") {
                     command.arg("-3");
                 }
                 return execute(command.arg(source), "Run");
             }
-            Self::CSharp => {
-                return execute(
-                    command.env("DOTNET_NOLOGO", "1").args(["run", source]),
-                    "Build and run (.NET SDK 10+)",
-                );
-            }
+            Self::CSharp => return run_csharp(compiler, directory, &source_path),
             Self::Java => {
                 return execute(
                     command.args(["--source", "21", source]),
@@ -186,6 +213,7 @@ impl Language {
             Self::Go => command.args(["build", "-o"]),
             Self::Kotlin => command.args([source, "-include-runtime", "-d"]),
             Self::Cobol => command.args(["-x", "-free", "-O2", source, "-o"]),
+            Self::Swift => command.args(["-O", source, "-o"]),
         };
 
         let build = tempfile::tempdir().map_err(Error::TemporaryDirectory)?;
@@ -229,8 +257,14 @@ impl Language {
             Self::Go => "Install the Go toolchain.",
             Self::JavaScript => "Install Node.js.",
             Self::Kotlin => "Install the Kotlin/JVM command-line compiler and a JDK.",
-            Self::CSharp => "Install the .NET SDK 10 or later.",
+            Self::CSharp => "Install the .NET SDK 6 or later.",
             Self::Cobol => "Install GnuCOBOL (cobc).",
+            Self::Ruby => "Install Ruby.",
+            Self::Swift => "Install the Swift toolchain.",
+            Self::Brainfuck => {
+                "Install a `brainfuck` interpreter, for example `cargo install brainfuck-cli`."
+            }
+            Self::Aheui => "Install the rpaheui interpreter with `pip install aheui`.",
         }
     }
 }
@@ -249,6 +283,10 @@ impl fmt::Display for Language {
             Self::Kotlin => "Kotlin",
             Self::CSharp => "C#",
             Self::Cobol => "COBOL",
+            Self::Ruby => "Ruby",
+            Self::Swift => "Swift",
+            Self::Brainfuck => "Brainfuck",
+            Self::Aheui => "Aheui",
         })
     }
 }
@@ -371,6 +409,48 @@ fn is_executable(path: &Path) -> bool {
         && fs::metadata(path).is_ok_and(|meta| meta.is_file() && meta.len() > 0)
 }
 
+/// Matches BOJ's .NET 6 (C# 10). A newer runtime is used only if .NET 6 is not installed.
+const CSHARP_PROJECT: &str = r#"<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net6.0</TargetFramework>
+    <LangVersion>10.0</LangVersion>
+    <RollForward>Major</RollForward>
+    <UseAppHost>false</UseAppHost>
+    <CheckEolTargetFramework>false</CheckEolTargetFramework>
+  </PropertyGroup>
+</Project>
+"#;
+
+fn run_csharp(compiler: &Path, directory: &Path, source: &Path) -> Result<(), Error> {
+    let build = tempfile::tempdir().map_err(Error::TemporaryDirectory)?;
+    fs::write(build.path().join("solution.csproj"), CSHARP_PROJECT)
+        .and_then(|()| fs::copy(source, build.path().join("main.cs")))
+        .map_err(Error::TemporaryDirectory)?;
+    execute(
+        Command::new(compiler)
+            .current_dir(build.path())
+            .env("DOTNET_NOLOGO", "1")
+            .env("MSBUILDTERMINALLOGGER", "off")
+            // `dotnet build` would print a summary into the solution's output.
+            .args([
+                "msbuild",
+                "solution.csproj",
+                "-restore",
+                "-nologo",
+                "-v:quiet",
+            ])
+            .args(["-p:Configuration=Release", "-p:OutDir=out/"]),
+        "Build (.NET 6)",
+    )?;
+    execute(
+        Command::new(compiler)
+            .current_dir(directory)
+            .arg(build.path().join("out").join("solution.dll")),
+        "Run",
+    )
+}
+
 fn find_java() -> Option<PathBuf> {
     env::var_os("JAVA_HOME")
         .and_then(|home| resolve_executable(&PathBuf::from(home).join("bin").join("java")))
@@ -456,6 +536,20 @@ mod tests {
         assert_eq!(Language::from_str("cob", true), Ok(Language::Cobol));
         assert_eq!(Language::Cobol.source_name(), "main.cob");
         assert_eq!(Language::Cobol.default_compiler(), "cobc");
+    }
+
+    #[test]
+    fn ruby_swift_brainfuck_and_aheui_have_expected_files_and_tools() {
+        for (name, language, source, tool) in [
+            ("rb", Language::Ruby, "main.rb", "ruby"),
+            ("swift", Language::Swift, "main.swift", "swiftc"),
+            ("bf", Language::Brainfuck, "main.bf", "brainfuck"),
+            ("아희", Language::Aheui, "main.aheui", "aheui"),
+        ] {
+            assert_eq!(Language::from_str(name, true), Ok(language), "{name}");
+            assert_eq!(language.source_name(), source);
+            assert_eq!(language.default_compiler(), tool);
+        }
     }
 
     #[test]

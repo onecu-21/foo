@@ -19,7 +19,7 @@ foo init
 
 macOS on Apple silicon (arm64) is not built or tested in CI. I think it'll work.... maybe? Intel macOS, Linux, and Windows are tested.
 
-Nightly builds of `main` are on the [Nightly release](https://github.com/onecu-21/foo/releases/tag/nightly) page.
+Nightly builds of `dev` are on the [Nightly release](https://github.com/onecu-21/foo/releases/tag/nightly) page.
 
 To build by hand, run `cargo build --release --locked` and copy `target/release/foo` (`target\release\foo.exe` on Windows) into a folder on your `PATH`. The F5 run configuration uses the same `foo`.
 
@@ -85,12 +85,16 @@ In a problem folder opened by `foo start` or `foo open`, press `F5`. If a list o
 | `go` | `go` | `main.go` |
 | `javascript` | `node` | `main.js` |
 | `kotlin` | `kotlinc` and `java` (Kotlin/JVM) | `Main.kt` |
-| `csharp` (alias `dotnet`) | `dotnet` (.NET SDK 10 or later) | `main.cs` |
+| `csharp` (alias `dotnet`) | `dotnet` (.NET SDK 6 or later) | `main.cs` |
 | `cobol` (alias `cob`) | `cobc` (GnuCOBOL) | `main.cob` |
+| `ruby` (alias `rb`) | `ruby` | `main.rb` |
+| `swift` | `swiftc` | `main.swift` |
+| `brainfuck` (alias `bf`) | `brainfuck` (for example `cargo install brainfuck-cli`) | `main.bf` |
+| `aheui` (alias `아희`) | `aheui` (rpaheui) | `main.aheui` |
 
-If `foo` cannot find the compiler, install it and reopen your terminal, or point to it with `foo config --compiler <path>`. C and C++ use Clang by default. If you configure MSVC, `foo` stops with `HeresyError: Thou shalt use Clang.` and shows how to set up Clang. Java runs in JDK 21 source-file mode. C# runs in .NET 10 file-based app mode (`dotnet run main.cs`). COBOL is built with `cobc -x -free` (free-format source). Native executables and Kotlin build output are written to a temporary folder.
+If `foo` cannot find the compiler, install it and reopen your terminal, or point to it with `foo config --compiler <path>`. C and C++ use Clang by default. If you configure MSVC, `foo` stops with `HeresyError: Thou shalt use Clang.` and shows how to set up Clang. Java runs in JDK 21 source-file mode. C# is built for .NET 6 (C# 10), matching BOJ; if the .NET 6 runtime is not installed, it runs on a newer one. With a newer SDK, the first build may need network access to download the .NET 6 reference pack from NuGet. COBOL is built with `cobc -x -free` (free-format source). Native executables and Kotlin build output are written to a temporary folder. Ruby, Brainfuck, and Aheui run the source file directly with the interpreter, and Swift is built with `swiftc -O`. Brainfuck behaviour such as the value read at end of input depends on the interpreter, so it may differ from BOJ. An Aheui program's exit code is the value left on the selected stack, and `foo` reports a non-zero code as a failed run. On Windows, `foo` only starts `.exe`, `.cmd`, `.bat`, and `.com` files; if your Aheui installation provides only an extensionless `aheui` script, point `foo config --compiler` at a `.cmd` wrapper for it.
 
-For code navigation and completion, install extensions from VS Code's Extensions tab or with `code --install-extension <ID>`. Common extension IDs are `llvm-vs-code-extensions.vscode-clangd` for C/C++, `ms-python.python` for Python and PyPy, `rust-lang.rust-analyzer` for Rust, `vscjava.vscode-java-pack` for Java, and `golang.go` for Go, and `ms-dotnettools.csharp` for C#, and `bitlang.cobol` for COBOL
+For code navigation and completion, install extensions from VS Code's Extensions tab or with `code --install-extension <ID>`. Common extension IDs are `llvm-vs-code-extensions.vscode-clangd` for C/C++, `ms-python.python` for Python and PyPy, `rust-lang.rust-analyzer` for Rust, `vscjava.vscode-java-pack` for Java, and `golang.go` for Go, and `ms-dotnettools.csharp` for C#, and `bitlang.cobol` for COBOL, `Shopify.ruby-lsp` for Ruby, and `swiftlang.swift-vscode` for Swift.
 
 ## Files and settings
 

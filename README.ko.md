@@ -19,7 +19,7 @@ foo init
 
 Apple silicon(arm64) macOS는 CI에서 빌드나 테스트를 하지 않습니다. 아마 될 것 같은데... 모르겠네요? Intel macOS, Linux, Windows는 CI에서 테스트합니다.
 
-`main`의 Nightly 빌드는 [Nightly 릴리스](https://github.com/onecu-21/foo/releases/tag/nightly) 페이지에 있습니다.
+`dev`의 Nightly 빌드는 [Nightly 릴리스](https://github.com/onecu-21/foo/releases/tag/nightly) 페이지에 있습니다.
 
 직접 빌드하려면 `cargo build --release --locked`를 실행하고, `target/release/foo` 또는 Windows의 `target\release\foo.exe`를 `PATH`에 포함된 폴더에 복사합니다. F5 실행에도 같은 `foo`를 사용합니다.
 
@@ -77,12 +77,16 @@ foo remember https://www.acmicpc.net/workbook/view/42 --title "입출력 연습"
 | `go` | `go` | `main.go` |
 | `javascript` | `node` | `main.js` |
 | `kotlin` | Kotlin/JVM의 `kotlinc`, `java` | `Main.kt` |
-| `csharp` (별칭 `dotnet`) | `dotnet` (.NET SDK 10 이상) | `main.cs` |
+| `csharp` (별칭 `dotnet`) | `dotnet` (.NET SDK 6 이상) | `main.cs` |
 | `cobol` (별칭 `cob`) | GnuCOBOL의 `cobc` | `main.cob` |
+| `ruby` (별칭 `rb`) | `ruby` | `main.rb` |
+| `swift` | `swiftc` | `main.swift` |
+| `brainfuck` (별칭 `bf`) | `brainfuck` (예: `cargo install brainfuck-cli`) | `main.bf` |
+| `aheui` (별칭 `아희`) | `aheui` (rpaheui) | `main.aheui` |
 
-컴파일러를 찾을 수 없으면 설치 후 터미널을 다시 열거나 `foo config --compiler <경로>`로 지정합니다. C/C++는 Clang을 기본으로 사용합니다. MSVC로 지정하면 `HeresyError: Thou shalt use Clang.`과 함께 Clang 설정 방법을 표시합니다. Java는 JDK 21 소스 파일 모드로 실행합니다. C#은 .NET 10 파일 기반 앱 모드(`dotnet run main.cs`)로 실행합니다. COBOL은 `cobc -x -free`(자유 형식 소스)로 빌드합니다. 네이티브 실행 파일과 Kotlin 빌드 결과는 임시 폴더에 생성합니다.
+컴파일러를 찾을 수 없으면 설치 후 터미널을 다시 열거나 `foo config --compiler <경로>`로 지정합니다. C/C++는 Clang을 기본으로 사용합니다. MSVC로 지정하면 `HeresyError: Thou shalt use Clang.`과 함께 Clang 설정 방법을 표시합니다. Java는 JDK 21 소스 파일 모드로 실행합니다. C#은 BOJ에 맞춰 .NET 6(C# 10)용으로 빌드하며, .NET 6 런타임이 없으면 상위 런타임에서 실행합니다. 상위 SDK를 쓰면 첫 빌드 때 NuGet에서 .NET 6 참조 팩을 내려받기 위해 네트워크가 필요할 수 있습니다. COBOL은 `cobc -x -free`(자유 형식 소스)로 빌드합니다. 네이티브 실행 파일과 Kotlin 빌드 결과는 임시 폴더에 생성합니다. Ruby, Brainfuck, 아희는 인터프리터로 소스 파일을 바로 실행하고, Swift는 `swiftc -O`로 빌드합니다. 입력이 끝났을 때 읽는 값 같은 Brainfuck 동작은 인터프리터마다 달라 BOJ와 다를 수 있습니다. 아희 프로그램의 종료 코드는 선택된 저장 공간에 남은 값이며, 0이 아니면 `foo`는 실행 실패로 표시합니다. Windows에서 `foo`는 `.exe`, `.cmd`, `.bat`, `.com` 파일만 실행합니다. 설치한 아희가 확장자 없는 `aheui` 스크립트만 제공하면, 이를 실행하는 `.cmd` 파일을 만들어 `foo config --compiler`로 지정하세요.
 
-코드 탐색과 완성 기능이 필요하면 VS Code의 확장 탭에서 설치하거나 `code --install-extension <ID>`를 실행합니다. 자주 쓰는 확장 ID로는 C/C++의 `llvm-vs-code-extensions.vscode-clangd`, Python/PyPy의 `ms-python.python`, Rust의 `rust-lang.rust-analyzer`, Java의 `vscjava.vscode-java-pack`, Go의 `golang.go`가 있습니다.
+코드 탐색과 완성 기능이 필요하면 VS Code의 확장 탭에서 설치하거나 `code --install-extension <ID>`를 실행합니다. 자주 쓰는 확장 ID로는 C/C++의 `llvm-vs-code-extensions.vscode-clangd`, Python/PyPy의 `ms-python.python`, Rust의 `rust-lang.rust-analyzer`, Java의 `vscjava.vscode-java-pack`, Go의 `golang.go`, C#의 `ms-dotnettools.csharp`, COBOL의 `bitlang.cobol`, Ruby의 `Shopify.ruby-lsp`, Swift의 `swiftlang.swift-vscode`가 있습니다.
 
 ## 파일과 설정
 
