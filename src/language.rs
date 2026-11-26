@@ -28,6 +28,13 @@ pub enum Language {
     CSharp,
     #[value(alias = "cob")]
     Cobol,
+    #[value(alias = "rb")]
+    Ruby,
+    Swift,
+    #[value(alias = "bf")]
+    Brainfuck,
+    #[value(alias = "아희")]
+    Aheui,
 }
 
 impl Language {
@@ -44,6 +51,10 @@ impl Language {
             Self::Kotlin => "kotlin",
             Self::CSharp => "csharp",
             Self::Cobol => "cobol",
+            Self::Ruby => "ruby",
+            Self::Swift => "swift",
+            Self::Brainfuck => "brainfuck",
+            Self::Aheui => "aheui",
         }
     }
 
@@ -59,6 +70,10 @@ impl Language {
             Self::Kotlin => "Main.kt",
             Self::CSharp => "main.cs",
             Self::Cobol => "main.cob",
+            Self::Ruby => "main.rb",
+            Self::Swift => "main.swift",
+            Self::Brainfuck => "main.bf",
+            Self::Aheui => "main.aheui",
         }
     }
 
@@ -75,6 +90,10 @@ impl Language {
             Self::Kotlin => "kotlinc",
             Self::CSharp => "dotnet",
             Self::Cobol => "cobc",
+            Self::Ruby => "ruby",
+            Self::Swift => "swiftc",
+            Self::Brainfuck => "brainfuck",
+            Self::Aheui => "aheui",
         }
     }
 
@@ -99,6 +118,12 @@ impl Language {
             Self::CSharp => {
                 "using System;\n\nclass Program\n{\n    static void Main()\n    {\n    }\n}\n"
             }
+            Self::Ruby => "def main\nend\n\nmain\n",
+            Self::Swift => "import Foundation\n\n",
+            // Every character that is not a command is a comment, so start empty.
+            Self::Brainfuck => "\n",
+            // `희` ends the program.
+            Self::Aheui => "희\n",
             Self::Cobol => concat!(
                 "IDENTIFICATION DIVISION.\n",
                 "PROGRAM-ID. MAIN.\n\n",
@@ -117,7 +142,9 @@ impl Language {
             Self::Go => Some("golang.go"),
             Self::CSharp => Some("ms-dotnettools.csharp"),
             Self::Cobol => Some("bitlang.cobol"),
-            Self::JavaScript | Self::Kotlin => None,
+            Self::Ruby => Some("Shopify.ruby-lsp"),
+            Self::Swift => Some("swiftlang.swift-vscode"),
+            Self::JavaScript | Self::Kotlin | Self::Brainfuck | Self::Aheui => None,
         }
     }
 
@@ -156,7 +183,12 @@ impl Language {
         let mut command = Command::new(compiler);
         command.current_dir(directory);
         let command = match self {
-            Self::Python | Self::PyPy | Self::JavaScript => {
+            Self::Python
+            | Self::PyPy
+            | Self::JavaScript
+            | Self::Ruby
+            | Self::Brainfuck
+            | Self::Aheui => {
                 if self == Self::Python && cfg!(windows) && executable_is(compiler, "py") {
                     command.arg("-3");
                 }
@@ -181,6 +213,7 @@ impl Language {
             Self::Go => command.args(["build", "-o"]),
             Self::Kotlin => command.args([source, "-include-runtime", "-d"]),
             Self::Cobol => command.args(["-x", "-free", "-O2", source, "-o"]),
+            Self::Swift => command.args(["-O", source, "-o"]),
         };
 
         let build = tempfile::tempdir().map_err(Error::TemporaryDirectory)?;
@@ -226,6 +259,12 @@ impl Language {
             Self::Kotlin => "Install the Kotlin/JVM command-line compiler and a JDK.",
             Self::CSharp => "Install the .NET SDK 6 or later.",
             Self::Cobol => "Install GnuCOBOL (cobc).",
+            Self::Ruby => "Install Ruby.",
+            Self::Swift => "Install the Swift toolchain.",
+            Self::Brainfuck => {
+                "Install a `brainfuck` interpreter, for example `cargo install brainfuck-cli`."
+            }
+            Self::Aheui => "Install the rpaheui interpreter with `pip install aheui`.",
         }
     }
 }
@@ -244,6 +283,10 @@ impl fmt::Display for Language {
             Self::Kotlin => "Kotlin",
             Self::CSharp => "C#",
             Self::Cobol => "COBOL",
+            Self::Ruby => "Ruby",
+            Self::Swift => "Swift",
+            Self::Brainfuck => "Brainfuck",
+            Self::Aheui => "Aheui",
         })
     }
 }
@@ -493,6 +536,20 @@ mod tests {
         assert_eq!(Language::from_str("cob", true), Ok(Language::Cobol));
         assert_eq!(Language::Cobol.source_name(), "main.cob");
         assert_eq!(Language::Cobol.default_compiler(), "cobc");
+    }
+
+    #[test]
+    fn ruby_swift_brainfuck_and_aheui_have_expected_files_and_tools() {
+        for (name, language, source, tool) in [
+            ("rb", Language::Ruby, "main.rb", "ruby"),
+            ("swift", Language::Swift, "main.swift", "swiftc"),
+            ("bf", Language::Brainfuck, "main.bf", "brainfuck"),
+            ("아희", Language::Aheui, "main.aheui", "aheui"),
+        ] {
+            assert_eq!(Language::from_str(name, true), Ok(language), "{name}");
+            assert_eq!(language.source_name(), source);
+            assert_eq!(language.default_compiler(), tool);
+        }
     }
 
     #[test]
