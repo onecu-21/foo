@@ -1,14 +1,10 @@
-name: Nightly
+name: Nightly build
 
-# Every day at 01:30 KST (16:30 UTC) build dev and, if it passes the full CI,
-# overwrite the rolling `nightly` prerelease. Skipped when dev has not changed
-# since the last nightly. Run it by hand with "Run workflow" to force a build.
-# GitHub runs scheduled workflows from the default branch, so edits to this file
-# take effect there only once they are on main.
+# Build dev and, if it passes the full CI, overwrite the rolling `nightly`
+# prerelease. Skipped when dev has not changed since the last nightly, unless the
+# run was started by hand. Called by nightly-trigger.yml.
 on:
-  schedule:
-    - cron: "30 16 * * *"
-  workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read

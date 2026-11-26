@@ -1,0 +1,18 @@
+name: Nightly
+
+# GitHub runs scheduled workflows only from the default branch (main), so this
+# file just starts the nightly build defined on dev, every day at 01:30 KST
+# (16:30 UTC). Keep it identical on main and dev. A manual run forces a build.
+on:
+  schedule:
+    - cron: "30 16 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  nightly:
+    uses: onecu-21/foo/.github/workflows/nightly.yml@dev
+    permissions:
+      contents: write
