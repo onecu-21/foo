@@ -162,12 +162,7 @@ impl Language {
                 }
                 return execute(command.arg(source), "Run");
             }
-            Self::CSharp => {
-                return execute(
-                    command.env("DOTNET_NOLOGO", "1").args(["run", source]),
-                    "Build and run (.NET SDK 10+)",
-                );
-            }
+            Self::CSharp => return run_csharp(compiler, directory, &source_path),
             Self::Java => {
                 return execute(
                     command.args(["--source", "21", source]),
@@ -229,7 +224,7 @@ impl Language {
             Self::Go => "Install the Go toolchain.",
             Self::JavaScript => "Install Node.js.",
             Self::Kotlin => "Install the Kotlin/JVM command-line compiler and a JDK.",
-            Self::CSharp => "Install the .NET SDK 10 or later.",
+            Self::CSharp => "Install the .NET SDK 6 or later.",
             Self::Cobol => "Install GnuCOBOL (cobc).",
         }
     }
@@ -369,6 +364,48 @@ fn is_executable(path: &Path) -> bool {
             });
     has_executable_extension
         && fs::metadata(path).is_ok_and(|meta| meta.is_file() && meta.len() > 0)
+}
+
+/// Matches BOJ's .NET 6 (C# 10). A newer runtime is used only if .NET 6 is not installed.
+const CSHARP_PROJECT: &str = r#"<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net6.0</TargetFramework>
+    <LangVersion>10.0</LangVersion>
+    <RollForward>Major</RollForward>
+    <UseAppHost>false</UseAppHost>
+    <CheckEolTargetFramework>false</CheckEolTargetFramework>
+  </PropertyGroup>
+</Project>
+"#;
+
+fn run_csharp(compiler: &Path, directory: &Path, source: &Path) -> Result<(), Error> {
+    let build = tempfile::tempdir().map_err(Error::TemporaryDirectory)?;
+    fs::write(build.path().join("solution.csproj"), CSHARP_PROJECT)
+        .and_then(|()| fs::copy(source, build.path().join("main.cs")))
+        .map_err(Error::TemporaryDirectory)?;
+    execute(
+        Command::new(compiler)
+            .current_dir(build.path())
+            .env("DOTNET_NOLOGO", "1")
+            .env("MSBUILDTERMINALLOGGER", "off")
+            // `dotnet build` would print a summary into the solution's output.
+            .args([
+                "msbuild",
+                "solution.csproj",
+                "-restore",
+                "-nologo",
+                "-v:quiet",
+            ])
+            .args(["-p:Configuration=Release", "-p:OutDir=out/"]),
+        "Build (.NET 6)",
+    )?;
+    execute(
+        Command::new(compiler)
+            .current_dir(directory)
+            .arg(build.path().join("out").join("solution.dll")),
+        "Run",
+    )
 }
 
 fn find_java() -> Option<PathBuf> {
