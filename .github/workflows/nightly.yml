@@ -1,8 +1,10 @@
 name: Nightly
 
-# Every day at 01:30 KST (16:30 UTC) build main and, if it passes the full CI,
-# overwrite the rolling `nightly` prerelease. Skipped when main has not changed
+# Every day at 01:30 KST (16:30 UTC) build dev and, if it passes the full CI,
+# overwrite the rolling `nightly` prerelease. Skipped when dev has not changed
 # since the last nightly. Run it by hand with "Run workflow" to force a build.
+# GitHub runs scheduled workflows from the default branch, so edits to this file
+# take effect there only once they are on main.
 on:
   schedule:
     - cron: "30 16 * * *"
@@ -20,14 +22,18 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       changed: ${{ steps.diff.outputs.changed }}
+      sha: ${{ steps.diff.outputs.sha }}
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: dev
           fetch-depth: 0
       - id: diff
         run: |
+          head=$(git rev-parse HEAD)
+          echo "sha=$head" >> "$GITHUB_OUTPUT"
           last=$(git rev-parse -q --verify "refs/tags/nightly^{commit}" || true)
-          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] || [ "$last" != "$(git rev-parse HEAD)" ]; then
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] || [ "$last" != "$head" ]; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
           else
             echo "changed=false" >> "$GITHUB_OUTPUT"
@@ -38,6 +44,8 @@ jobs:
     needs: check
     if: needs.check.outputs.changed == 'true'
     uses: ./.github/workflows/ci.yml
+    with:
+      ref: ${{ needs.check.outputs.sha }}
 
   publish:
     needs: [check, ci]
@@ -47,6 +55,8 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.check.outputs.sha }}
       - uses: actions/download-artifact@v4
         with:
           pattern: foo-*
@@ -73,9 +83,10 @@ jobs:
       - name: Overwrite the nightly prerelease
         env:
           GH_TOKEN: ${{ github.token }}
+          SHA: ${{ needs.check.outputs.sha }}
         run: |
           {
-            echo "Unreleased build of \`main\` at ${GITHUB_SHA} ($(date -u +'%Y-%m-%d %H:%M UTC')). It replaces the previous nightly every time, so older nightlies are not kept. For a stable build, use the latest numbered release."
+            echo "Unreleased build of \`dev\` at ${SHA} ($(date -u +'%Y-%m-%d %H:%M UTC')). It replaces the previous nightly every time, so older nightlies are not kept. For a stable build, use the latest numbered release."
             echo
             echo "- Every binary was built by CI, and this is only published when all CI jobs pass."
             echo "- Linux powerpc64, powerpc64le, riscv64, s390x, ARMv7, PowerPC32, and SPARC64 are built and unit-tested under QEMU only. MIPS32 and MIPS64 (big- and little-endian) are experimental: Rust tier 3, built from source on nightly and unit-tested under QEMU."
@@ -89,4 +100,4 @@ jobs:
             --notes-file notes.md \
             --prerelease \
             --latest=false \
-            --target "$GITHUB_SHA"
+            --target "$SHA"

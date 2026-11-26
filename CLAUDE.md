@@ -33,7 +33,7 @@ Flow: `main.rs` → `cli.rs` (clap derive) → `app::execute`, which dispatches 
 - **Per-problem language**: `<problem dir>/.foo-language` records which language a problem was created with. It takes precedence over the default language in the config. The compiler override in the config applies only when the problem's language equals the default language.
 - **Re-importing** a stored workbook keeps the current problem if it is still in the list; otherwise it keeps the old index, clamped to the new length (see `app::remember`).
 
-Nightly (`nightly.yml`, 01:30 KST) runs the same CI on main and overwrites the rolling `nightly` prerelease; `release.yml` does the same for `v*` tags.
+Nightly (`nightly.yml`, 01:30 KST) runs the same CI on dev and overwrites the rolling `nightly` prerelease; `release.yml` does the same for `v*` tags.
 
 CI (`.github/workflows/ci.yml`): fmt once, then clippy + full tests + release build on native runners (Linux/Windows x64, x86, arm64; macOS x64; macOS arm64 is deliberately not in CI and unverified), and release build + unit tests only under QEMU for Linux powerpc64, powerpc64le, riscv64 (via `cross`), s390x, ARMv7, PowerPC32, SPARC64, and experimental MIPS32/64 BE+LE (Ubuntu cross gcc + qemu-user; the MIPS ones are tier 3, nightly + build-std, and allowed to fail). The integration tests need a native `rustc`, so they run only on native runners. COBOL is exercised on Linux x64 (GnuCOBOL installed, `FOO_REQUIRE_COBOL=1`). Deliberately not built: riscv32, SPARC32, LoongArch64, m68k, Hexagon.
 

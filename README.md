@@ -19,7 +19,7 @@ foo init
 
 macOS on Apple silicon (arm64) is not built or tested in CI. I think it'll work.... maybe? Intel macOS, Linux, and Windows are tested.
 
-Nightly builds of `main` are on the [Nightly release](https://github.com/onecu-21/foo/releases/tag/nightly) page.
+Nightly builds of `dev` are on the [Nightly release](https://github.com/onecu-21/foo/releases/tag/nightly) page.
 
 To build by hand, run `cargo build --release --locked` and copy `target/release/foo` (`target\release\foo.exe` on Windows) into a folder on your `PATH`. The F5 run configuration uses the same `foo`.
 
